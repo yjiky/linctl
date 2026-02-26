@@ -43,7 +43,7 @@ Follow this checklist to cut a new release and update Homebrew:
 If the action is disabled or no secret is configured:
 ```bash
 TAG=vX.Y.Z
-TARBALL=https://github.com/dorkitude/linctl/archive/refs/tags/${TAG}.tar.gz
+TARBALL=https://github.com/yjiky/linctl/archive/refs/tags/${TAG}.tar.gz
 curl -sL "$TARBALL" -o /tmp/linctl.tgz
 SHA=$(shasum -a 256 /tmp/linctl.tgz | awk '{print $1}')
 
