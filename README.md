@@ -141,6 +141,8 @@ linctl issue update LIN-123 --state "In Progress"
 linctl issue update LIN-123 --priority 1  # 0=None, 1=Urgent, 2=High, 3=Normal, 4=Low
 linctl issue update LIN-123 --due-date "2024-12-31"
 linctl issue update LIN-123 --due-date ""  # Remove due date
+linctl issue update LIN-123 --project "65a77a62-ec5e-491e-b1d9-84aebee01b33"  # Set project by ID
+linctl issue update LIN-123 --project none  # Remove project
 
 # Update multiple fields at once
 linctl issue update LIN-123 --title "Critical Bug" --assignee me --priority 1
@@ -260,6 +262,7 @@ linctl issue edit <issue-id> [flags]    # Alias
   -s, --state string       State name (e.g., 'Todo', 'In Progress', 'Done')
   --priority int           Priority (0=None, 1=Urgent, 2=High, 3=Normal, 4=Low)
   --due-date string        Due date (YYYY-MM-DD format, or empty to remove)
+  --project string         Project ID (UUID) to set on the issue; use empty or 'none' to remove
 
 # Archive issue (coming soon)
 linctl issue archive <issue-id>
@@ -358,6 +361,23 @@ linctl comment new <issue-id> -b "Comment text"    # Alias
 linctl comment create LIN-123 --body "I've started working on this"
 linctl comment add LIN-123 -b "Fixed in commit abc123"
 linctl comment create LIN-456 --body "@john please review this PR"
+```
+
+### Attachment Commands
+```bash
+# List attachments on an issue
+linctl issue attachments list LIN-123
+
+# Download all attachments for an issue to a directory
+linctl issue attachments download LIN-123 --dir ./downloads
+
+# Download selected attachments by attachment ID
+linctl issue attachments list LIN-123
+linctl issue attachments download LIN-123 --id 47e14163-404c-4a34-b775-5c536d67760a --dir ./downloads
+
+# Upload a local file and attach it to an issue
+linctl issue attachments upload LIN-123 ./screenshot.png
+linctl issue attachments upload LIN-123 ./design.pdf --title "Design doc"
 ```
 
 ## 🎨 Output Formats

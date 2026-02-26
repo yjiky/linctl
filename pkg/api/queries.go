@@ -1096,6 +1096,20 @@ func (c *Client) UpdateIssue(ctx context.Context, id string, input map[string]in
 					createdAt
 					updatedAt
 					dueDate
+					project {
+						id
+						name
+						state
+						progress
+						startDate
+						targetDate
+						health
+						lead {
+							id
+							name
+							email
+						}
+					}
 					state {
 						id
 						name

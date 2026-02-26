@@ -1049,6 +1049,17 @@ Examples:
 			}
 		}
 
+		// Handle project update
+		if cmd.Flags().Changed("project") {
+			projectID, _ := cmd.Flags().GetString("project")
+			if projectID == "" || strings.EqualFold(projectID, "none") {
+				input["projectId"] = nil
+			} else {
+				// Linear expects a project UUID here (see `linctl project list`)
+				input["projectId"] = projectID
+			}
+		}
+
 		// Check if any updates were specified
 		if len(input) == 0 {
 			output.Error("No updates specified. Use flags to specify what to update.", plaintext, jsonOut)
@@ -1118,4 +1129,5 @@ func init() {
 	issueUpdateCmd.Flags().StringP("state", "s", "", "State name (e.g., 'Todo', 'In Progress', 'Done')")
 	issueUpdateCmd.Flags().Int("priority", -1, "Priority (0=None, 1=Urgent, 2=High, 3=Normal, 4=Low)")
 	issueUpdateCmd.Flags().String("due-date", "", "Due date (YYYY-MM-DD format, or empty to remove)")
+	issueUpdateCmd.Flags().String("project", "", "Project ID (UUID) to set on the issue; use empty or 'none' to remove")
 }
