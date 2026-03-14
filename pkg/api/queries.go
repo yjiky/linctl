@@ -1249,6 +1249,41 @@ func (c *Client) GetTeam(ctx context.Context, key string) (*Team, error) {
 	return &response.Team, nil
 }
 
+// GetTeamLabels returns all available issue labels for a team
+func (c *Client) GetTeamLabels(ctx context.Context, teamKey string) ([]Label, error) {
+	query := `
+		query TeamLabels($teamKey: String!) {
+			team(id: $teamKey) {
+				labels(first: 250) {
+					nodes {
+						id
+						name
+						color
+						description
+					}
+				}
+			}
+		}
+	`
+
+	variables := map[string]interface{}{
+		"teamKey": teamKey,
+	}
+
+	var response struct {
+		Team struct {
+			Labels Labels `json:"labels"`
+		} `json:"team"`
+	}
+
+	err := c.Execute(ctx, query, variables, &response)
+	if err != nil {
+		return nil, err
+	}
+
+	return response.Team.Labels.Nodes, nil
+}
+
 // Comment represents a Linear comment
 type Comment struct {
 	ID        string     `json:"id"`

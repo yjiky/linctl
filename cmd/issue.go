@@ -754,6 +754,68 @@ func buildIssueFilter(cmd *cobra.Command) map[string]interface{} {
 	return filter
 }
 
+func resolveIssueLabelIDs(ctx context.Context, client *api.Client, teamKey string, labelsValue string) ([]string, error) {
+	rawLabels := strings.Split(labelsValue, ",")
+	labels := make([]string, 0, len(rawLabels))
+	for _, raw := range rawLabels {
+		label := strings.TrimSpace(raw)
+		if label != "" {
+			labels = append(labels, label)
+		}
+	}
+
+	if len(labels) == 0 {
+		return []string{}, nil
+	}
+
+	teamLabels, err := client.GetTeamLabels(ctx, teamKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch labels for team %s: %w", teamKey, err)
+	}
+
+	idToID := make(map[string]string, len(teamLabels))
+	nameToID := make(map[string]string, len(teamLabels))
+	availableLabels := make([]string, 0, len(teamLabels))
+	for _, label := range teamLabels {
+		idToID[label.ID] = label.ID
+		nameToID[strings.ToLower(label.Name)] = label.ID
+		availableLabels = append(availableLabels, label.Name)
+	}
+
+	resolved := make([]string, 0, len(labels))
+	seen := make(map[string]bool, len(labels))
+	unresolved := make([]string, 0)
+
+	for _, value := range labels {
+		if id, ok := idToID[value]; ok {
+			if !seen[id] {
+				resolved = append(resolved, id)
+				seen[id] = true
+			}
+			continue
+		}
+
+		if id, ok := nameToID[strings.ToLower(value)]; ok {
+			if !seen[id] {
+				resolved = append(resolved, id)
+				seen[id] = true
+			}
+			continue
+		}
+
+		unresolved = append(unresolved, value)
+	}
+
+	if len(unresolved) > 0 {
+		if len(availableLabels) == 0 {
+			return nil, fmt.Errorf("label(s) not found: %s (team %s has no labels)", strings.Join(unresolved, ", "), teamKey)
+		}
+		return nil, fmt.Errorf("label(s) not found: %s. Available labels for %s: %s", strings.Join(unresolved, ", "), teamKey, strings.Join(availableLabels, ", "))
+	}
+
+	return resolved, nil
+}
+
 func priorityToString(priority int) string {
 	switch priority {
 	case 0:
@@ -849,6 +911,7 @@ var issueCreateCmd = &cobra.Command{
 		teamKey, _ := cmd.Flags().GetString("team")
 		priority, _ := cmd.Flags().GetInt("priority")
 		assignToMe, _ := cmd.Flags().GetBool("assign-me")
+		labelsValue, _ := cmd.Flags().GetString("labels")
 
 		if title == "" {
 			output.Error("Title is required (--title)", plaintext, jsonOut)
@@ -890,6 +953,20 @@ var issueCreateCmd = &cobra.Command{
 			input["assigneeId"] = viewer.ID
 		}
 
+		if cmd.Flags().Changed("labels") {
+			trimmed := strings.TrimSpace(labelsValue)
+			if trimmed != "" && !strings.EqualFold(trimmed, "none") {
+				labelIDs, err := resolveIssueLabelIDs(context.Background(), client, team.Key, trimmed)
+				if err != nil {
+					output.Error(fmt.Sprintf("Failed to resolve labels: %v", err), plaintext, jsonOut)
+					os.Exit(1)
+				}
+				if len(labelIDs) > 0 {
+					input["labelIds"] = labelIDs
+				}
+			}
+		}
+
 		// Create issue
 		issue, err := client.CreateIssue(context.Background(), input)
 		if err != nil {
@@ -922,6 +999,7 @@ Examples:
   linctl issue update LIN-123 --title "New title"
   linctl issue update LIN-123 --description "Updated description"
   linctl issue update LIN-123 --assignee john.doe@company.com
+	linctl issue update LIN-123 --labels "Bug,Backend"
   linctl issue update LIN-123 --state "In Progress"
   linctl issue update LIN-123 --priority 1
   linctl issue update LIN-123 --due-date "2024-12-31"
@@ -938,6 +1016,20 @@ Examples:
 		}
 
 		client := api.NewClient(authHeader)
+		var currentIssue *api.Issue
+		getCurrentIssue := func() (*api.Issue, error) {
+			if currentIssue != nil {
+				return currentIssue, nil
+			}
+
+			issue, err := client.GetIssue(context.Background(), args[0])
+			if err != nil {
+				return nil, err
+			}
+
+			currentIssue = issue
+			return currentIssue, nil
+		}
 
 		// Build update input
 		input := make(map[string]interface{})
@@ -998,7 +1090,7 @@ Examples:
 			stateName, _ := cmd.Flags().GetString("state")
 
 			// First, get the issue to know which team it belongs to
-			issue, err := client.GetIssue(context.Background(), args[0])
+			issue, err := getCurrentIssue()
 			if err != nil {
 				output.Error(fmt.Sprintf("Failed to get issue: %v", err), plaintext, jsonOut)
 				os.Exit(1)
@@ -1031,6 +1123,34 @@ Examples:
 			}
 
 			input["stateId"] = stateID
+		}
+
+		if cmd.Flags().Changed("labels") {
+			labelsValue, _ := cmd.Flags().GetString("labels")
+			trimmed := strings.TrimSpace(labelsValue)
+
+			if trimmed == "" || strings.EqualFold(trimmed, "none") {
+				input["labelIds"] = []string{}
+			} else {
+				issue, err := getCurrentIssue()
+				if err != nil {
+					output.Error(fmt.Sprintf("Failed to get issue: %v", err), plaintext, jsonOut)
+					os.Exit(1)
+				}
+
+				if issue.Team == nil || issue.Team.Key == "" {
+					output.Error("Issue has no team, cannot resolve labels", plaintext, jsonOut)
+					os.Exit(1)
+				}
+
+				labelIDs, err := resolveIssueLabelIDs(context.Background(), client, issue.Team.Key, trimmed)
+				if err != nil {
+					output.Error(fmt.Sprintf("Failed to resolve labels: %v", err), plaintext, jsonOut)
+					os.Exit(1)
+				}
+
+				input["labelIds"] = labelIDs
+			}
 		}
 
 		// Handle priority update
@@ -1119,6 +1239,7 @@ func init() {
 	issueCreateCmd.Flags().StringP("team", "t", "", "Team key (required)")
 	issueCreateCmd.Flags().Int("priority", 3, "Priority (0=None, 1=Urgent, 2=High, 3=Normal, 4=Low)")
 	issueCreateCmd.Flags().BoolP("assign-me", "m", false, "Assign to yourself")
+	issueCreateCmd.Flags().String("labels", "", "Comma-separated label names or IDs to set on the issue")
 	_ = issueCreateCmd.MarkFlagRequired("title")
 	_ = issueCreateCmd.MarkFlagRequired("team")
 
@@ -1130,4 +1251,5 @@ func init() {
 	issueUpdateCmd.Flags().Int("priority", -1, "Priority (0=None, 1=Urgent, 2=High, 3=Normal, 4=Low)")
 	issueUpdateCmd.Flags().String("due-date", "", "Due date (YYYY-MM-DD format, or empty to remove)")
 	issueUpdateCmd.Flags().String("project", "", "Project ID (UUID) to set on the issue; use empty or 'none' to remove")
+	issueUpdateCmd.Flags().String("labels", "", "Comma-separated label names or IDs; use empty or 'none' to remove all labels")
 }

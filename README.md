@@ -7,6 +7,7 @@ A comprehensive command-line interface for Linear's API, built with agents in mi
 
 - 🔐 **Authentication**: Personal API Key support
 - 📋 **Issue Management**: Create, list, view, update, assign, and manage issues with full details
+  - Set labels on issues during create and update workflows
   - Sub-issue hierarchy with parent/child relationships
   - Git branch integration showing linked branches
   - Cycle (sprint) and project associations
@@ -127,6 +128,7 @@ linctl issue get LIN-123
 
 # Create a new issue
 linctl issue create --title "Bug fix" --team ENG
+linctl issue create --title "Fix API timeout" --team ENG --labels "Bug,Backend"
 
 # Assign issue to yourself
 linctl issue assign LIN-123
@@ -143,6 +145,8 @@ linctl issue update LIN-123 --due-date "2024-12-31"
 linctl issue update LIN-123 --due-date ""  # Remove due date
 linctl issue update LIN-123 --project "65a77a62-ec5e-491e-b1d9-84aebee01b33"  # Set project by ID
 linctl issue update LIN-123 --project none  # Remove project
+linctl issue update LIN-123 --labels "Bug,Backend"  # Set labels by name or ID
+linctl issue update LIN-123 --labels none  # Remove all labels
 
 # Update multiple fields at once
 linctl issue update LIN-123 --title "Critical Bug" --assignee me --priority 1
@@ -246,8 +250,9 @@ linctl issue new [flags]      # Alias
   --title string           Issue title (required)
   -d, --description string Issue description
   -t, --team string        Team key (required)
-  --priority int       Priority 0-4 (default 3)
+  --priority int           Priority 0-4 (default 3)
   -m, --assign-me          Assign to yourself
+  --labels string          Comma-separated label names or IDs
 
 # Assign issue to yourself
 linctl issue assign <issue-id>
@@ -263,6 +268,7 @@ linctl issue edit <issue-id> [flags]    # Alias
   --priority int           Priority (0=None, 1=Urgent, 2=High, 3=Normal, 4=Low)
   --due-date string        Due date (YYYY-MM-DD format, or empty to remove)
   --project string         Project ID (UUID) to set on the issue; use empty or 'none' to remove
+  --labels string          Comma-separated label names or IDs; use empty or 'none' to remove all labels
 
 # Archive issue (coming soon)
 linctl issue archive <issue-id>
