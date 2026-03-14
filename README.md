@@ -107,11 +107,15 @@ linctl issue list --assignee me
 # List issues in a specific state
 linctl issue list --state "In Progress"
 
+# List issues with a specific label
+linctl issue list --labels "Bug"
+
 # List issues sorted by update date
 linctl issue list --sort updated
 
 # Search issues using Linear's full-text index (shares the same filters as list)
 linctl issue search "login bug" --team ENG
+linctl issue search "login" --labels "Bug,Backend"
 linctl issue search "customer:" --include-completed --include-archived
 
 # List recent issues (last 2 weeks instead of default 6 months)
@@ -234,6 +238,7 @@ linctl issue ls [flags]     # Short alias
   -c, --include-completed   Include completed and canceled issues
   -s, --state string       Filter by state name
   -t, --team string        Filter by team key
+  --labels string          Filter by comma-separated label names
   -r, --priority int       Filter by priority (0-4, default: -1)
   -l, --limit int          Maximum results (default 50)
   -o, --sort string        Sort order: linear (default), created, updated

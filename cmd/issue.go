@@ -734,6 +734,27 @@ func buildIssueFilter(cmd *cobra.Command) map[string]interface{} {
 		filter["team"] = map[string]interface{}{"key": map[string]interface{}{"eq": team}}
 	}
 
+	if labelsValue, _ := cmd.Flags().GetString("labels"); strings.TrimSpace(labelsValue) != "" {
+		rawLabels := strings.Split(labelsValue, ",")
+		labels := make([]string, 0, len(rawLabels))
+		for _, raw := range rawLabels {
+			label := strings.TrimSpace(raw)
+			if label != "" {
+				labels = append(labels, label)
+			}
+		}
+
+		if len(labels) == 1 {
+			filter["labels"] = map[string]interface{}{
+				"name": map[string]interface{}{"eq": labels[0]},
+			}
+		} else if len(labels) > 1 {
+			filter["labels"] = map[string]interface{}{
+				"name": map[string]interface{}{"in": labels},
+			}
+		}
+	}
+
 	if priority, _ := cmd.Flags().GetInt("priority"); priority != -1 {
 		filter["priority"] = map[string]interface{}{"eq": priority}
 	}
@@ -1216,6 +1237,7 @@ func init() {
 	issueListCmd.Flags().StringP("assignee", "a", "", "Filter by assignee (email or 'me')")
 	issueListCmd.Flags().StringP("state", "s", "", "Filter by state name")
 	issueListCmd.Flags().StringP("team", "t", "", "Filter by team key")
+	issueListCmd.Flags().String("labels", "", "Filter by comma-separated label names")
 	issueListCmd.Flags().IntP("priority", "r", -1, "Filter by priority (0=None, 1=Urgent, 2=High, 3=Normal, 4=Low)")
 	issueListCmd.Flags().IntP("limit", "l", 50, "Maximum number of issues to fetch")
 	issueListCmd.Flags().BoolP("include-completed", "c", false, "Include completed and canceled issues")
@@ -1226,6 +1248,7 @@ func init() {
 	issueSearchCmd.Flags().StringP("assignee", "a", "", "Filter by assignee (email or 'me')")
 	issueSearchCmd.Flags().StringP("state", "s", "", "Filter by state name")
 	issueSearchCmd.Flags().StringP("team", "t", "", "Filter by team key")
+	issueSearchCmd.Flags().String("labels", "", "Filter by comma-separated label names")
 	issueSearchCmd.Flags().IntP("priority", "r", -1, "Filter by priority (0=None, 1=Urgent, 2=High, 3=Normal, 4=Low)")
 	issueSearchCmd.Flags().IntP("limit", "l", 50, "Maximum number of issues to fetch")
 	issueSearchCmd.Flags().BoolP("include-completed", "c", false, "Include completed and canceled issues")
