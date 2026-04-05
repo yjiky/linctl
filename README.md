@@ -149,6 +149,8 @@ linctl issue update LIN-123 --due-date "2024-12-31"
 linctl issue update LIN-123 --due-date ""  # Remove due date
 linctl issue update LIN-123 --project "65a77a62-ec5e-491e-b1d9-84aebee01b33"  # Set project by ID
 linctl issue update LIN-123 --project none  # Remove project
+linctl issue update CHILD-123 --parent EPIC-999  # Set parent by identifier
+linctl issue update CHILD-123 --parent none  # Remove parent
 linctl issue update LIN-123 --labels "Bug,Backend"  # Set labels by name or ID
 linctl issue update LIN-123 --labels none  # Remove all labels
 
@@ -273,6 +275,7 @@ linctl issue edit <issue-id> [flags]    # Alias
   --priority int           Priority (0=None, 1=Urgent, 2=High, 3=Normal, 4=Low)
   --due-date string        Due date (YYYY-MM-DD format, or empty to remove)
   --project string         Project ID (UUID) to set on the issue; use empty or 'none' to remove
+  --parent string          Parent issue ID/identifier to set on the issue; use empty or 'none' to remove
   --labels string          Comma-separated label names or IDs; use empty or 'none' to remove all labels
 
 # Archive issue (coming soon)

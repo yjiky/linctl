@@ -1024,6 +1024,7 @@ Examples:
   linctl issue update LIN-123 --state "In Progress"
   linctl issue update LIN-123 --priority 1
   linctl issue update LIN-123 --due-date "2024-12-31"
+	linctl issue update CHILD-123 --parent EPIC-999
   linctl issue update LIN-123 --title "New title" --assignee me --priority 2`,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -1201,6 +1202,28 @@ Examples:
 			}
 		}
 
+		// Handle parent update
+		if cmd.Flags().Changed("parent") {
+			parentRef, _ := cmd.Flags().GetString("parent")
+			trimmed := strings.TrimSpace(parentRef)
+			if trimmed == "" || strings.EqualFold(trimmed, "none") {
+				input["parentId"] = nil
+			} else {
+				// Resolve parent identifier -> UUID
+				parentIssue, err := client.GetIssue(context.Background(), trimmed)
+				if err != nil {
+					output.Error(fmt.Sprintf("Failed to resolve parent issue '%s': %v", trimmed, err), plaintext, jsonOut)
+					os.Exit(1)
+				}
+				if parentIssue == nil || parentIssue.ID == "" {
+					output.Error(fmt.Sprintf("Parent issue not found: %s", trimmed), plaintext, jsonOut)
+					os.Exit(1)
+				}
+
+				input["parentId"] = parentIssue.ID
+			}
+		}
+
 		// Check if any updates were specified
 		if len(input) == 0 {
 			output.Error("No updates specified. Use flags to specify what to update.", plaintext, jsonOut)
@@ -1208,7 +1231,22 @@ Examples:
 		}
 
 		// Update the issue
-		issue, err := client.UpdateIssue(context.Background(), args[0], input)
+		updateID := args[0]
+		if cmd.Flags().Changed("parent") {
+			// Ensure child identifier -> UUID when setting/removing parent
+			childIssue, err := getCurrentIssue()
+			if err != nil {
+				output.Error(fmt.Sprintf("Failed to resolve child issue '%s': %v", args[0], err), plaintext, jsonOut)
+				os.Exit(1)
+			}
+			if childIssue == nil || childIssue.ID == "" {
+				output.Error(fmt.Sprintf("Child issue not found: %s", args[0]), plaintext, jsonOut)
+				os.Exit(1)
+			}
+			updateID = childIssue.ID
+		}
+
+		issue, err := client.UpdateIssue(context.Background(), updateID, input)
 		if err != nil {
 			output.Error(fmt.Sprintf("Failed to update issue: %v", err), plaintext, jsonOut)
 			os.Exit(1)
@@ -1274,5 +1312,6 @@ func init() {
 	issueUpdateCmd.Flags().Int("priority", -1, "Priority (0=None, 1=Urgent, 2=High, 3=Normal, 4=Low)")
 	issueUpdateCmd.Flags().String("due-date", "", "Due date (YYYY-MM-DD format, or empty to remove)")
 	issueUpdateCmd.Flags().String("project", "", "Project ID (UUID) to set on the issue; use empty or 'none' to remove")
+	issueUpdateCmd.Flags().String("parent", "", "Parent issue ID/identifier to set on the issue; use empty or 'none' to remove")
 	issueUpdateCmd.Flags().String("labels", "", "Comma-separated label names or IDs; use empty or 'none' to remove all labels")
 }
